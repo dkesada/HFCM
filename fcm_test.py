@@ -70,5 +70,5 @@ if __name__ == '__main__':
     parser.add_argument('-tf', dest='tf', default=None, type=str, help='test file name (eg. "356.csv"')
 
     args = parser.parse_args()
-    args.ts = 1652315634
+
     main(args.ts, args.tf)
