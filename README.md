@@ -16,5 +16,5 @@ The current roadmap of the project is:
 
 ## Deadline
 
-Regrettably, I do not have all the time that I would like to complete this project. I need a version of this algorithm to run some tests asap, and so the level of completion of the project may vary depending on the time left I have. Eventually, I'll get around to finishing a nice, compact version of this HFCM model.
+Regrettably, I do not have all the time that I would like to complete this project. I need a version of this algorithm to run some tests asap, and so the level of completion of the project may vary depending on the time I have left. Eventually, I'll get around to finishing a nice, compact version of this HFCM model.
 
