@@ -43,20 +43,20 @@ class HFCM:
 
         t0 = time.time()
 
-        # for _ in trange(self._max_iter, desc='model iterations', leave=True):
-        #     self._weights, self._input_weights, self._loop_error = self._mode(
-        #         np.array(dt_train),  # The original trains the model choosing a different train subset in each loop
-        #         self._n_fuzzy_nodes, self._window_size,
-        #         self._step, self._transform_foo(),
-        #         self._weights, self._input_weights,
-        #         self._error)
-        #
-        #     print('loop_error: ', self._loop_error)
-        #
-        #     self._errors.append(self._loop_error)
-        #
-        #     if self._loop_error <= self._perform_idx:
-        #         break
+        for _ in trange(self._max_iter, desc='model iterations', leave=True):
+            self._weights, self._input_weights, self._loop_error = self._mode(
+                np.array(dt_train),  # The original trains the model choosing a different train subset in each loop
+                self._n_fuzzy_nodes, self._window_size,
+                self._step, self._transform_foo(),
+                self._weights, self._input_weights,
+                self._error)
+
+            print('loop_error: ', self._loop_error)
+
+            self._errors.append(self._loop_error)
+
+            if self._loop_error <= self._perform_idx:
+                break
         print('Elapsed training time: ', t0 - time.time())
 
         if save:
