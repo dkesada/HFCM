@@ -6,6 +6,7 @@ import time
 import argparse
 
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from tqdm import trange
 
@@ -38,23 +39,24 @@ class HFCM:
         self._input_weights = np.random.rand(self._window_size, self._n_fuzzy_nodes)
         self._weights = np.random.rand(self._n_fuzzy_nodes, self._n_fuzzy_nodes)
         self._errors = []
+        dt_train = self._max_min_norm(dt_train)
 
         t0 = time.time()
 
-        for _ in trange(self._max_iter, desc='model iterations', leave=True):
-            self._weights, self._input_weights, self._loop_error = self._mode(
-                np.array(dt_train),  # The original trains the model choosing a different train subset in each loop
-                self._n_fuzzy_nodes, self._window_size,
-                self._step, self._transform_foo(),
-                self._weights, self._input_weights,
-                self._error)
-
-            print('loop_error: ', self._loop_error)
-
-            self._errors.append(self._loop_error)
-
-            if self._loop_error <= self._perform_idx:
-                break
+        # for _ in trange(self._max_iter, desc='model iterations', leave=True):
+        #     self._weights, self._input_weights, self._loop_error = self._mode(
+        #         np.array(dt_train),  # The original trains the model choosing a different train subset in each loop
+        #         self._n_fuzzy_nodes, self._window_size,
+        #         self._step, self._transform_foo(),
+        #         self._weights, self._input_weights,
+        #         self._error)
+        #
+        #     print('loop_error: ', self._loop_error)
+        #
+        #     self._errors.append(self._loop_error)
+        #
+        #     if self._loop_error <= self._perform_idx:
+        #         break
         print('Elapsed training time: ', t0 - time.time())
 
         if save:
@@ -73,14 +75,18 @@ class HFCM:
                 'calculations position': self._mode.__name__,
                 'max iterations': self._max_iter,
                 'window size': self._window_size,
-                'performance index': self._perform_idx
+                'performance index': self._perform_idx,
+                'amount': self._amount,
+                'save path': self._save_path
             },
             'files': {
                 'experiment': self._exp_name
             },
             'weights': {
                 'aggregation': self._input_weights.tolist(),
-                'fcm': self._weights.tolist()
+                'fcm': self._weights.tolist(),
+                'max_vals': self._max_vals.to_json(),
+                'min_vals': self._min_vals.to_json()
             },
             'results': {
                 'final error': self._loop_error,
@@ -92,16 +98,30 @@ class HFCM:
         return res
 
     def save_model(self):
-        if self._weights is None | self._input_weights is None:
+        if self._weights is None or self._input_weights is None:
             raise AttributeError('The model cannot be saved because no weights have been learned yet.')
         if not os.path.exists(self._save_path):
             os.makedirs(self._save_path)
         file_name = 'HFCM_' + time.asctime().replace(' ', '_').replace(':', '_')
         with open(f'{self._save_path}/{file_name}.json', 'w') as f:
-            json.dump(self._summarize(), f)
+            json.dump(self.summarize(), f)
 
-    def load_model(self):
-        return 0
+    def load_model(self, file):
+        with open(f"output/{file}", "r") as f:
+            summary = json.load(f)
+
+        self.__init__(step=summary['config']['step'], transform_foo=summary['config']['transformation function'],
+                      error=summary['config']['error'], mode=summary['config']['calculations position'],
+                      max_iter=summary['config']['max iterations'], perform_idx=summary['config']['performance index'],
+                      window_size=summary['config']['window size'], amount=summary['config']['amount'],
+                      exp_name=summary['files']['experiment'], save_path=summary['config']['save path'])
+        self._weights = np.array(summary['weights']['fcm'])
+        self._input_weights = np.array(summary['weights']['aggregation'])
+        self._min_vals = pd.Series(json.loads(summary['weights']['min_vals']))
+        self._max_vals = pd.Series(json.loads(summary['weights']['max_vals']))
+        self._loop_error = summary['results']['final error']
+        self._errors = summary['results']['errors']
+
 
     # I'll code the original argument switches as static methods of the class
     @staticmethod
