@@ -3,15 +3,15 @@ import scipy.optimize as optimize
 from lmfit import Parameters, Minimizer
 
 
-def scipy(fcm_weights, agg_weights, const, func):
+def scipy(fcm_weights, agg_weights, const, func, optim='trust-constr'):
     flat_weights = np.concatenate((fcm_weights.flatten(), agg_weights.flatten()), axis=None)
 
     bounds = optimize.Bounds(-np.ones(flat_weights.shape), np.ones(flat_weights.shape))
     nonlinc = optimize.NonlinearConstraint(func, 0, 0)
 
-    res = optimize.minimize(func, flat_weights, method='trust-constr', bounds=bounds,
+    res = optimize.minimize(func, flat_weights, method=optim, bounds=bounds,
                             # constraints=nonlinc,
-                            options={'disp': True, 'maxiter': 300, 'xtol': 1e-10})
+                            options={'disp': True, 'maxiter': 3000, 'xatol': 1e-05})
     # res = optimize.minimize(func, flat_weights, method='trust-constr', constraints=nonlinc, options={'disp': True}, bounds=bnds)
 
     n, m = const
@@ -24,12 +24,7 @@ def scipy(fcm_weights, agg_weights, const, func):
     return fcm_weights, agg_weights, err
 
 
-def scipy_inner(
-        transformation,
-        fcm_weights, agg_weights,
-        x, y,
-        error
-):
+def scipy_inner(transformation, fcm_weights, agg_weights, x, y, error, optim):
     n = fcm_weights.shape[0]
     m = agg_weights.shape[0]
 
@@ -43,17 +38,12 @@ def scipy_inner(
 
     const = n, m
 
-    fcm_weights, agg_weights, err = scipy(fcm_weights, agg_weights, const, func)
+    fcm_weights, agg_weights, err = scipy(fcm_weights, agg_weights, const, func, optim)
 
     return fcm_weights, agg_weights, err
 
 
-def scipy_outer(
-        transformation,
-        fcm_weights, agg_weights,
-        time_series, step, window,
-        error
-):
+def scipy_outer(transformation, fcm_weights, agg_weights, time_series, step, window, error, optim):
     n = fcm_weights.shape[0]
     m = agg_weights.shape[0]
 
@@ -69,12 +59,12 @@ def scipy_outer(
 
     const = n, m
 
-    fcm_weights, agg_weights, e = scipy(fcm_weights, agg_weights, const, func)
+    fcm_weights, agg_weights, e = scipy(fcm_weights, agg_weights, const, func, optim)
 
     return fcm_weights, agg_weights, e
 
 
-def lmfit(fcm_weights, agg_weights, const, func):
+def lmfit(fcm_weights, agg_weights, const, func, optim):
     flat_weights = np.concatenate((fcm_weights.flatten(), agg_weights.flatten()), axis=None)
 
     params = Parameters()
@@ -82,7 +72,7 @@ def lmfit(fcm_weights, agg_weights, const, func):
     np.fromiter(map(lambda x: params.add(f'w{x[0]}', value=x[1], min=-1, max=1), enumerate(flat_weights)), dtype=float)
 
     fitter = Minimizer(func, params)
-    result = fitter.minimize(method='nelder')
+    result = fitter.minimize(method=optim, options={'maxiter': 10000}) # A maximum number of iterations has to be fixed for it to finish in a reasonable time frame. I'll leave it constant for now
 
     n, m = const
 
@@ -95,12 +85,7 @@ def lmfit(fcm_weights, agg_weights, const, func):
     return fcm_weights, agg_weights, err
 
 
-def lmfit_inner(
-        transformation,
-        fcm_weights, agg_weights,
-        x, y,
-        error
-):
+def lmfit_inner(transformation, fcm_weights, agg_weights, x, y, error, optim):
     n = fcm_weights.shape[0]
     m = agg_weights.shape[0]
 
@@ -114,17 +99,12 @@ def lmfit_inner(
 
     const = n, m
 
-    fcm_weights, agg_weights, err = lmfit(fcm_weights, agg_weights, const, func)
+    fcm_weights, agg_weights, err = lmfit(fcm_weights, agg_weights, const, func, optim)
 
     return fcm_weights, agg_weights, err
 
 
-def lmfit_outer(
-        transformation,
-        fcm_weights, agg_weights,
-        time_series, step, window,
-        error
-):
+def lmfit_outer(transformation, fcm_weights, agg_weights, time_series, step, window, error, optim):
     n = fcm_weights.shape[0]
     m = agg_weights.shape[0]
 
@@ -140,7 +120,7 @@ def lmfit_outer(
 
     const = n, m
 
-    fcm_weights, agg_weights, e = lmfit(fcm_weights, agg_weights, const, func)
+    fcm_weights, agg_weights, e = lmfit(fcm_weights, agg_weights, const, func, optim)
 
     return fcm_weights, agg_weights, e
 
@@ -170,41 +150,26 @@ def calc_all(time_series, step, window, transformation, weights, input_weights):
     return yts, ys
 
 
-def inner_calculations(
-        time_series,
-        fuzzy_nodes, window,
-        step, transformation,
-        weights, input_weights,
-        error
-):
+def inner_calculations(time_series, fuzzy_nodes, window, step, transformation, weights, input_weights,
+                       error, optim='nelder'):
     error_max = -1
 
     for step in step(time_series, window):
-        weights, input_weights, e = lmfit_inner(
-            transformation,
-            weights, input_weights,
-            step['x'], step['y'],
-            error
-        )
-
+        weights, input_weights, e = lmfit_inner(transformation, weights, input_weights, step['x'], step['y'],
+                                                error, optim)
         if error_max < e:
             error_max = e
 
     return weights, input_weights, error_max
 
 
-def outer_calculations(
-        time_series,
-        fuzzy_nodes, window,
-        step, transformation,
-        weights, input_weights,
-        error
-):
-    weights, input_weights, e = lmfit_outer(
-        transformation,
-        weights, input_weights,
-        time_series, step, window,
-        error
-    )
+def outer_calculations(time_series, fuzzy_nodes, window, step, transformation, weights, input_weights,
+                       error, optim='nelder'):
+    weights, input_weights, e = lmfit_outer(transformation, weights, input_weights, time_series, step, window,
+                                            error, optim)
+
+    # weights, input_weights, e = scipy_outer(transformation, weights, input_weights, time_series, step, window,
+    #                                         error, optim)
+
 
     return weights, input_weights, e

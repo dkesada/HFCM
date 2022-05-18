@@ -9,8 +9,8 @@ This repository is a generalization of the original fuzzy cognitive map (FCM) ex
 The current roadmap of the project is:
 
 * Create a local copy of the original repo and set it up to run the original experiment :heavy_check_mark:
-* Lay down the foundation of some classes to encapsulate the whole model
-* Simplify training: a training dataset, window size and specific parameters should return a class with a `forecast()` method
+* Lay down the foundation of some classes to encapsulate the whole model :heavy_check_mark:
+* Simplify training: a training dataset, window size and specific parameters should return a class with a `forecast()` method :heavy_check_mark:
 * Simplify testing: I have a model, I have some test data, so if I give you a starting point forecast up to horizon H
 * Make the window move. A sliding window has less weights to train, and can make arbitrary length predictions
 

@@ -14,12 +14,13 @@ from util import modes, errors as err, data, transformations as trans, steps
 
 
 class HFCM:
-    def __init__(self, step='overlap', transform_foo='sigmoid', error='rmse', mode='outer',
+    def __init__(self, step='overlap', transform_foo='sigmoid', error='rmse', mode='outer', optim='nelder',
                  max_iter=100, perform_idx=1e-05, window_size=4, amount=4, exp_name=None, save_path='output'):
         self._step = self._step_switch(step)
         self._transform_foo = self._trans_switch(transform_foo)
         self._error = self._error_switch(error)
         self._mode = self._mode_switch(mode)
+        self._optim = optim
         self._max_iter = max_iter
         self._perform_idx = perform_idx
         self._window_size = window_size
@@ -49,7 +50,7 @@ class HFCM:
                 self._n_fuzzy_nodes, self._window_size,
                 self._step, self._transform_foo(),
                 self._weights, self._input_weights,
-                self._error)
+                self._error, self._optim)
 
             print('loop_error: ', self._loop_error)
 
@@ -69,7 +70,7 @@ class HFCM:
         res = {
             'config': {
                 'step': self._step.__name__,
-                'algorithm': 'Nelder-Mead',
+                'algorithm': self._optim,
                 'error': self._error.__name__,
                 'transformation function': self._transform_foo.__name__,
                 'calculations position': self._mode.__name__,
