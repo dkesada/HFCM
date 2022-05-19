@@ -72,7 +72,7 @@ def lmfit(fcm_weights, agg_weights, const, func, optim):
     np.fromiter(map(lambda x: params.add(f'w{x[0]}', value=x[1], min=-1, max=1), enumerate(flat_weights)), dtype=float)
 
     fitter = Minimizer(func, params)
-    result = fitter.minimize(method=optim, options={'maxiter': 10000}) # A maximum number of iterations has to be fixed for it to finish in a reasonable time frame. I'll leave it constant for now
+    result = fitter.minimize(method=optim, options={'maxiter': 8000}) # A maximum number of iterations has to be fixed for it to finish in a reasonable time frame. I'll leave it constant for now
 
     n, m = const
 
@@ -170,6 +170,5 @@ def outer_calculations(time_series, fuzzy_nodes, window, step, transformation, w
 
     # weights, input_weights, e = scipy_outer(transformation, weights, input_weights, time_series, step, window,
     #                                         error, optim)
-
 
     return weights, input_weights, e

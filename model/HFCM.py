@@ -14,7 +14,7 @@ from util import modes, errors as err, data, transformations as trans, steps
 
 
 class HFCM:
-    def __init__(self, step='overlap', transform_foo='sigmoid', error='rmse', mode='outer', optim='nelder',
+    def __init__(self, step='overlap', transform_foo='sigmoid', error='rmse', mode='outer', optim='Nelder-Mead',
                  max_iter=100, perform_idx=1e-05, window_size=4, amount=4, exp_name=None, save_path='output'):
         self._step = self._step_switch(step)
         self._transform_foo = self._trans_switch(transform_foo)
