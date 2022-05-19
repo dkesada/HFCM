@@ -21,3 +21,11 @@ def mpe(x, y):
 
 def max_pe(x, y):
     return pe(x, y).max()
+
+
+def mae(x, y):
+    return np.sum(np.abs(x - y) / len(x))
+
+
+def mape(x, y):
+    return (100 / len(x)) * np.sum(np.abs((x - y) / x))
