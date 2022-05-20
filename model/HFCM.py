@@ -73,7 +73,7 @@ class HFCM:
         test_errors = {'mae': [0] * len(obj_vars), 'mape': [0] * len(obj_vars)}  # I'll tailor the forecast to use MAE and MAPE
         idx_vars = self._find_idx(obj_vars)
         pred_ts = np.zeros((length, len(obj_vars)))
-        orig_ts = np.matrix(dt.iloc[self._window_size:(self._window_size + length), idx_vars])  # It isn't always available in real world applications
+        orig_ts = np.array(dt.iloc[self._window_size:(self._window_size + length), idx_vars])  # It isn't always available in real world applications
 
         x_window = np.copy(series[0:self._window_size])  # I'll create and move the window myself, without the step
 
@@ -91,7 +91,10 @@ class HFCM:
 
         if print_res:
             print('Forecasting results:')
-            print(f'MAE: {test_errors["mae"]:.3f}; MAPE: {test_errors["mape"]:.3f}; Execution time: {t1:.3f}')
+            for i in range(len(obj_vars)):
+                print(f'Results for {obj_vars[i]}:')
+                print(f'MAE: {test_errors["mae"][i]:.3f}; MAPE: {test_errors["mape"][i]:.3f}')
+            print(f'Execution time: {t1:.3f}')
 
         if plot_res:
             self._plot_res(series[0:self._window_size], orig_ts, pred_ts, idx_vars)
@@ -106,14 +109,8 @@ class HFCM:
 
     def _calc_real_error(self, orig, pred, idx_vars, err_foo):
         un_pred = self._undo_max_min_norm(pred, idx_vars)
-        res = None
 
-        if orig.shape[1] == 1:
-            res = err_foo(orig, un_pred)
-        else:
-            res = [err_foo(orig[i], un_pred[i]) for i in idx_vars]
-
-        return res
+        return [err_foo(orig[:, i], un_pred[:, i]) for i in range(len(idx_vars))]
 
     def summarize(self):
         res = {
@@ -237,18 +234,24 @@ class HFCM:
         return [self._var_names.index(i) for i in obj_vars]
 
     def _plot_res(self, ini_point, orig_ts, pred_ts, idx_vars):
-        ini_point = self._undo_max_min_norm(ini_point, idx_vars)
+        ini_point = self._undo_max_min_norm(ini_point[:, idx_vars], idx_vars)
         pred_ts = self._undo_max_min_norm(pred_ts, idx_vars)
-        if orig_ts.shape[1] == 1:
-            self._plot_pred(ini_point[:, idx_vars[0]], orig_ts, pred_ts, self._var_names[idx_vars[0]])
-        for i in idx_vars:
-            self._plot_pred(ini_point[:, i], orig_ts[:, i], pred_ts[:, i], self._var_names[i])
 
-    def _plot_pred(self, ini_point, orig_ts, pred_ts, var_name):
+        for i in range(len(idx_vars)):
+            self._plot_pred(ini_point[:, i], orig_ts[:, i], pred_ts[:, i], idx_vars[i])
+
+    def _plot_pred(self, ini_point, orig_ts, pred_ts, var_idx):
+        ini_point = np.concatenate((ini_point, [None]*self._window_size))  # I pad the series with None for plotting purposes
+        switch_point = [ini_point[self._window_size-1]]
+        orig_ts = np.concatenate(([None]*(self._window_size-1), switch_point, orig_ts))
+        pred_ts = np.concatenate(([None]*(self._window_size-1), switch_point, pred_ts))
+
         plt.figure()
         plt.plot(ini_point)
         plt.plot(orig_ts)
         plt.plot(pred_ts)
         plt.xlabel("Time")
-        plt.ylabel(var_name)
+        plt.ylabel(self._var_names[var_idx])
         plt.show()
+
+# self._plot_pred(tmp1, np.concatenate(([None]*3, [tmp1[3]], orig_ts[:, 0])), np.concatenate(([None]*3, [tmp1[3]], pred_ts[:, 0])), self._var_names[idx_vars[0]])

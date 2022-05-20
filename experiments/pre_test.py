@@ -11,6 +11,7 @@ if __name__ == '__main__':
     del dt_test['cyc']
     # model.train_weights(dt)
     model.load_model("HFCM_Wed_May_18_18_27_11_2022.json")
+    #model.forecast(dt_test, length=4, obj_vars=["T_1", "T_2"])
     model.forecast(dt_test, length=4, obj_vars=["T_1"])
     model.summarize()
 
