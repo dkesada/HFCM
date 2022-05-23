@@ -15,13 +15,15 @@ from util import modes, errors as err, transformations as trans, steps
 
 class HFCM:
     def __init__(self, step='overlap', transform_foo='sigmoid', error='rmse', mode='outer', optim='Nelder-Mead',
-                 max_iter=100, perform_idx=1e-05, window_size=4, amount=4, exp_name=None, save_path='output'):
+                 max_iter=100, max_iter_optim=1e4, perform_idx=1e-05, window_size=4, amount=4, exp_name=None,
+                 save_path='output'):
         self._step = self._step_switch(step)
         self._transform_foo = self._trans_switch(transform_foo)
         self._error = self._error_switch(error)
         self._mode = self._mode_switch(mode)
         self._optim = optim
         self._max_iter = max_iter
+        self._max_iter_optim = max_iter_optim
         self._perform_idx = perform_idx
         self._window_size = window_size
         self._amount = amount  # Amount of training datasets in the original. Maybe number of folds in this one
@@ -36,23 +38,27 @@ class HFCM:
         self._max_vals = None
         self._min_vals = None
 
-    def train_weights(self, dt_train, save=True):
-        self._n_fuzzy_nodes = dt_train.shape[1]  # As many fuzzy nodes as variables in our data
+    def train_weights(self, dt_train, idx_var=None, cv_size=None, cv_set=None, save=True):
+        unique_cyc = dt_train[idx_var].unique()
+        self._n_fuzzy_nodes = dt_train.shape[1]-1  # As many fuzzy nodes as variables in our data
         self._input_weights = np.random.rand(self._window_size, self._n_fuzzy_nodes)
         self._weights = np.random.rand(self._n_fuzzy_nodes, self._n_fuzzy_nodes)
         self._errors = []
         self._var_names = list(dt_train.columns)
+        tmp_idx_var = dt_train[idx_var]
         dt_train = self._max_min_norm(dt_train)
+        dt_train[idx_var] = tmp_idx_var
+        del tmp_idx_var
 
         t0 = time.time()
 
         for _ in trange(self._max_iter, desc='model iterations', leave=True):
             self._weights, self._input_weights, self._loop_error = self._mode(
-                np.array(dt_train),  # The original trains the model choosing a different train subset in each loop
+                self._get_random_cycles(dt_train, cv_size, idx_var, unique_cyc),  # The original trains the model choosing a different train subset in each loop
                 self._n_fuzzy_nodes, self._window_size,
                 self._step, self._transform_foo(),
                 self._weights, self._input_weights,
-                self._error, self._optim)
+                self._error, self._optim, self._max_iter_optim)
 
             print('loop_error: ', self._loop_error)
 
@@ -230,6 +236,12 @@ class HFCM:
     def _undo_max_min_norm(self, pred, idx_vars):
         return pred * (self._get_max_vals(idx_vars) - self._get_min_vals(idx_vars)) + self._get_min_vals(idx_vars)
 
+
+    @staticmethod
+    def _get_random_cycles(dt, n, idx_var, unique_cyc):
+        cycles = np.random.choice(unique_cyc, n, replace=False)
+        return np.array(dt[dt[idx_var].isin(cycles)].drop(idx_var, axis=1))
+
     def _find_idx(self, obj_vars):
         return [self._var_names.index(i) for i in obj_vars]
 
@@ -254,4 +266,3 @@ class HFCM:
         plt.ylabel(self._var_names[var_idx])
         plt.show()
 
-# self._plot_pred(tmp1, np.concatenate(([None]*3, [tmp1[3]], orig_ts[:, 0])), np.concatenate(([None]*3, [tmp1[3]], pred_ts[:, 0])), self._var_names[idx_vars[0]])

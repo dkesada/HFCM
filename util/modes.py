@@ -64,7 +64,7 @@ def scipy_outer(transformation, fcm_weights, agg_weights, time_series, step, win
     return fcm_weights, agg_weights, e
 
 
-def lmfit(fcm_weights, agg_weights, const, func, optim):
+def lmfit(fcm_weights, agg_weights, const, func, optim, max_iter_optim):
     flat_weights = np.concatenate((fcm_weights.flatten(), agg_weights.flatten()), axis=None)
 
     params = Parameters()
@@ -72,7 +72,7 @@ def lmfit(fcm_weights, agg_weights, const, func, optim):
     np.fromiter(map(lambda x: params.add(f'w{x[0]}', value=x[1], min=-1, max=1), enumerate(flat_weights)), dtype=float)
 
     fitter = Minimizer(func, params)
-    result = fitter.minimize(method=optim, options={'maxiter': 8000}) # A maximum number of iterations has to be fixed for it to finish in a reasonable time frame. I'll leave it constant for now
+    result = fitter.minimize(method=optim, options={'maxiter': max_iter_optim}) # A maximum number of iterations has to be fixed for it to finish in a reasonable time frame
 
     n, m = const
 
@@ -104,7 +104,7 @@ def lmfit_inner(transformation, fcm_weights, agg_weights, x, y, error, optim):
     return fcm_weights, agg_weights, err
 
 
-def lmfit_outer(transformation, fcm_weights, agg_weights, time_series, step, window, error, optim):
+def lmfit_outer(transformation, fcm_weights, agg_weights, time_series, step, window, error, optim, max_iter_optim):
     n = fcm_weights.shape[0]
     m = agg_weights.shape[0]
 
@@ -120,7 +120,7 @@ def lmfit_outer(transformation, fcm_weights, agg_weights, time_series, step, win
 
     const = n, m
 
-    fcm_weights, agg_weights, e = lmfit(fcm_weights, agg_weights, const, func, optim)
+    fcm_weights, agg_weights, e = lmfit(fcm_weights, agg_weights, const, func, optim, max_iter_optim)
 
     return fcm_weights, agg_weights, e
 
@@ -164,9 +164,9 @@ def inner_calculations(time_series, fuzzy_nodes, window, step, transformation, w
 
 
 def outer_calculations(time_series, fuzzy_nodes, window, step, transformation, weights, input_weights,
-                       error, optim='nelder'):
+                       error, optim='nelder', max_iter_optim=1e4):
     weights, input_weights, e = lmfit_outer(transformation, weights, input_weights, time_series, step, window,
-                                            error, optim)
+                                            error, optim, max_iter_optim)
 
     # weights, input_weights, e = scipy_outer(transformation, weights, input_weights, time_series, step, window,
     #                                         error, optim)
