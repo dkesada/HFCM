@@ -38,16 +38,17 @@ class HFCM:
         self._max_vals = None
         self._min_vals = None
 
-    def train_weights(self, dt_train, idx_var=None, cv_size=None, cv_set=None, save=True):
+    def train_weights(self, dt_train, idx_var=None, cv_size=None, cv_set=None, cte_cols=None, save=True):
         unique_cyc = dt_train[idx_var].unique()
-        self._n_fuzzy_nodes = dt_train.shape[1]-1  # As many fuzzy nodes as variables in our data
+        dt_train = self._diff_ts(dt_train, idx_var, cte_cols)  # Differentiate the data to remove the tendency of the ts
+        tmp_idx_var = dt_train.pop(idx_var)
+        self._n_fuzzy_nodes = dt_train.shape[1] # As many fuzzy nodes as variables in our data
         self._input_weights = np.random.rand(self._window_size, self._n_fuzzy_nodes)
         self._weights = np.random.rand(self._n_fuzzy_nodes, self._n_fuzzy_nodes)
         self._errors = []
         self._var_names = list(dt_train.columns)
-        tmp_idx_var = dt_train[idx_var]
-        dt_train = self._max_min_norm(dt_train)
-        dt_train[idx_var] = tmp_idx_var
+        dt_train = self._max_min_norm(dt_train)  # Normalization of the data
+        dt_train.loc[:, idx_var] = tmp_idx_var
         del tmp_idx_var
 
         t0 = time.time()
@@ -236,6 +237,18 @@ class HFCM:
     def _undo_max_min_norm(self, pred, idx_vars):
         return pred * (self._get_max_vals(idx_vars) - self._get_min_vals(idx_vars)) + self._get_min_vals(idx_vars)
 
+    def _diff_ts(self, dt, idx_var, cte_cols):
+        if cte_cols is None:
+            excluded_cols = dt[idx_var]
+        else:
+            cte_cols.append(idx_var)
+            excluded_cols = dt[cte_cols]
+
+        for i in dt[idx_var].unique():  # Differentiate at cycle level to not mix them
+            dt.loc[dt[idx_var] == i, :] = dt[dt[idx_var] == i].diff()
+        dt.loc[:, cte_cols] = excluded_cols
+
+        return dt.dropna(axis=0)
 
     @staticmethod
     def _get_random_cycles(dt, n, idx_var, unique_cyc):

@@ -10,9 +10,10 @@ if __name__ == '__main__':
     dt = dt.iloc[0:3999, :]  # 0:200 con 10000 its en el optim
     # del dt[idx_var]
     del dt_test[idx_var]
-    model.train_weights(dt, idx_var, cv_size=4)
-    # model.load_model("HFCM_Fri_May_20_16_34_42_2022.json")
-    # model.forecast(dt_test, length=4, obj_vars=["T_1", "T_2"])
-    # model.forecast(dt_test, length=10, obj_vars=["T_1"])
+    cte_cols = ['rho_1', 'C_p1', 'C_in', 'vol', 'C_ain']
+    # model.train_weights(dt, idx_var, cv_size=4, cte_cols=['rho_1', 'C_p1', 'C_in', 'vol', 'C_ain'])
+    model.load_model("HFCM_Mon_May_23_15_57_35_2022.json")
+    model.forecast(dt_test.diff().iloc[2:40], length=4, obj_vars=["T_1", "T_2"])
+    model.forecast(dt_test.diff().iloc[2:240], length=80, obj_vars=["T_1"])
     model.summarize()
 
