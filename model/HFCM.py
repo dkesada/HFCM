@@ -33,12 +33,14 @@ class HFCM:
         self._weights = None
         self._input_weights = None
         self._var_names = None
+        self._cte_cols = None
+        self._idx_var = None
         self._errors = None
         self._loop_error = None
         self._max_vals = None
         self._min_vals = None
 
-    def train_weights(self, dt_train, idx_var=None, cv_size=None, cv_set=None, cte_cols=None, save=True):
+    def train_weights(self, dt_train, idx_var=None, cv_size=None, cte_cols=None, save=True):
         unique_cyc = dt_train[idx_var].unique()
         dt_train = self._diff_ts(dt_train, idx_var, cte_cols)  # Differentiate the data to remove the tendency of the ts
         tmp_idx_var = dt_train.pop(idx_var)
@@ -47,6 +49,8 @@ class HFCM:
         self._weights = np.random.rand(self._n_fuzzy_nodes, self._n_fuzzy_nodes)
         self._errors = []
         self._var_names = list(dt_train.columns)
+        self._cte_cols = cte_cols
+        self._idx_var = idx_var
         dt_train = self._max_min_norm(dt_train)  # Normalization of the data
         dt_train.loc[:, idx_var] = tmp_idx_var
         del tmp_idx_var
@@ -76,7 +80,8 @@ class HFCM:
     def forecast(self, dt, length, obj_vars, print_res=True, plot_res=True):
         if not isinstance(obj_vars, list):
             raise TypeError("The 'obj_vars' argument has to be a list.")
-        series = np.array(self._max_min_norm(dt))
+        ini_vals = dt.iloc[self._window_size-1]  # First values needed to undo the differentiation
+        series = np.array(self._max_min_norm(self._diff_ts(dt, self._idx_var, self._cte_cols)))
         test_errors = {'mae': [0] * len(obj_vars), 'mape': [0] * len(obj_vars)}  # I'll tailor the forecast to use MAE and MAPE
         idx_vars = self._find_idx(obj_vars)
         pred_ts = np.zeros((length, len(obj_vars)))
@@ -93,6 +98,8 @@ class HFCM:
 
         t1 = time.time() - t0
 
+        pred_ts = self._undo_diff(self._undo_max_min_norm(pred_ts, idx_vars), ini_vals, idx_vars)
+
         test_errors['mae'] = self._calc_real_error(orig_ts, pred_ts, idx_vars, err.mae)
         test_errors['mape'] = self._calc_real_error(orig_ts, pred_ts, idx_vars, err.mape)
 
@@ -104,7 +111,7 @@ class HFCM:
             print(f'Execution time: {t1:.3f}')
 
         if plot_res:
-            self._plot_res(series[0:self._window_size], orig_ts, pred_ts, idx_vars)
+            self._plot_res(np.array(dt.iloc[0:self._window_size]), orig_ts, pred_ts, idx_vars)
 
         return pred_ts, test_errors
 
@@ -115,9 +122,7 @@ class HFCM:
         return x_window
 
     def _calc_real_error(self, orig, pred, idx_vars, err_foo):
-        un_pred = self._undo_max_min_norm(pred, idx_vars)
-
-        return [err_foo(orig[:, i], un_pred[:, i]) for i in range(len(idx_vars))]
+        return [err_foo(orig[:, i], pred[:, i]) for i in range(len(idx_vars))]
 
     def summarize(self):
         res = {
@@ -135,6 +140,8 @@ class HFCM:
             },
             'files': {
                 'variable names': self._var_names,
+                'constant columns': self._cte_cols,
+                'index variable': self._idx_var,
                 'experiment': self._exp_name
             },
             'weights': {
@@ -173,6 +180,8 @@ class HFCM:
         self._weights = np.array(summary['weights']['fcm'])
         self._input_weights = np.array(summary['weights']['aggregation'])
         self._var_names = summary['files']['variable names']
+        self._cte_cols = summary['files']['constant columns']
+        self._idx_var = summary['files']['index variable']
         self._min_vals = pd.Series(json.loads(summary['weights']['min_vals']))
         self._max_vals = pd.Series(json.loads(summary['weights']['max_vals']))
         self._loop_error = summary['results']['final error']
@@ -238,17 +247,29 @@ class HFCM:
         return pred * (self._get_max_vals(idx_vars) - self._get_min_vals(idx_vars)) + self._get_min_vals(idx_vars)
 
     def _diff_ts(self, dt, idx_var, cte_cols):
-        if cte_cols is None:
+        if cte_cols is None and idx_var in dt.columns:
             excluded_cols = dt[idx_var]
-        else:
-            cte_cols.append(idx_var)
+        elif cte_cols is not None:
+            if idx_var in dt.columns:
+                cte_cols.append(idx_var)
             excluded_cols = dt[cte_cols]
 
-        for i in dt[idx_var].unique():  # Differentiate at cycle level to not mix them
-            dt.loc[dt[idx_var] == i, :] = dt[dt[idx_var] == i].diff()
-        dt.loc[:, cte_cols] = excluded_cols
+        if idx_var in dt.columns:
+            for i in dt[idx_var].unique():  # Differentiate at cycle level to not mix them
+                dt.loc[dt[idx_var] == i, :] = dt[dt[idx_var] == i].diff()
+        else:
+            dt = dt.diff()
+        if cte_cols is not None:
+            dt.loc[:, cte_cols] = excluded_cols
 
         return dt.dropna(axis=0)
+
+    def _undo_diff(self, ts, ini_vals, idx_vars):
+        ts[0] = ts[0] + ini_vals[idx_vars]
+        for i in range(1, len(ts)):
+            ts[i] = ts[i-1] + ts[i]
+
+        return ts
 
     @staticmethod
     def _get_random_cycles(dt, n, idx_var, unique_cyc):
@@ -259,11 +280,8 @@ class HFCM:
         return [self._var_names.index(i) for i in obj_vars]
 
     def _plot_res(self, ini_point, orig_ts, pred_ts, idx_vars):
-        ini_point = self._undo_max_min_norm(ini_point[:, idx_vars], idx_vars)
-        pred_ts = self._undo_max_min_norm(pred_ts, idx_vars)
-
         for i in range(len(idx_vars)):
-            self._plot_pred(ini_point[:, i], orig_ts[:, i], pred_ts[:, i], idx_vars[i])
+            self._plot_pred(ini_point[:, idx_vars[i]], orig_ts[:, i], pred_ts[:, i], idx_vars[i])
 
     def _plot_pred(self, ini_point, orig_ts, pred_ts, var_idx):
         ini_point = np.concatenate((ini_point, [None]*self._window_size))  # I pad the series with None for plotting purposes
