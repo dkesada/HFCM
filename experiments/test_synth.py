@@ -10,7 +10,7 @@ if __name__ == '__main__':
     config = {
         'optim': 'Nelder-Mead',
         'window_size': 4,
-        'max_iter_optim': 1e5,
+        'max_iter_optim': 1e4,
         'perform_idx': 1e-7,
         'max_iter': 100,
         'cte_cols': ['rho_1', 'C_p1', 'C_in', 'vol', 'C_ain']

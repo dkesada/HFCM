@@ -1,5 +1,4 @@
-import os
-import random as rn
+from random import seed
 import numpy as np
 import pandas as pd
 import json
@@ -17,6 +16,7 @@ class CvCtrl:
 
     def run(self, model_init, pred_len, output_file=None, **kwargs):
         self._results = [[], [], [], []]
+        seed(self._seed)
 
         for cv in self._info['cv']:
             cv_res = self._model_eval(model_init, cv, pred_len, **kwargs)
