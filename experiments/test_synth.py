@@ -11,6 +11,7 @@ if __name__ == '__main__':
         'optim': 'Nelder-Mead',
         'transform_foo': 'gaussian',
         'window_size': 4,
+        'diff': True,
         'max_iter_optim': 1e5,
         'perform_idx': 1e-7,
         'max_iter': 100,

@@ -45,8 +45,10 @@ class CvCtrl:
     # This is model specific of the HFCM, it should be modified for other models
     def _model_eval(self, model_init, cv, pred_len, **kwargs):
         dt_train, dt_test = self._get_train_test(cv)
-        cte_cols = kwargs['cte_cols']
-        del kwargs['cte_cols']
+        cte_cols = []
+        if 'cte_cols' in kwargs.keys():
+            cte_cols = kwargs['cte_cols']
+            del kwargs['cte_cols']
         model = model_init(**kwargs)
         t_train = model.train_weights(dt_train, self._idx_var, cte_cols=cte_cols, save=False)
         res = [[], [], []]

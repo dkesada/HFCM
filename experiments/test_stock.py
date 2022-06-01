@@ -11,10 +11,9 @@ if __name__ == '__main__':
         'optim': 'Nelder-Mead',
         'transform_foo': 'gaussian',
         'window_size': 4,
-        'max_iter_optim': 1e5,
+        'max_iter_optim': 1e6,
         'perform_idx': 1e-7,
-        'max_iter': 20,
-        'cte_cols': []
+        'max_iter': 20
     }
 
     dt_file = "TWII_1y.csv"

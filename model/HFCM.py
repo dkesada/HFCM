@@ -15,7 +15,7 @@ from util import modes, errors as err, transformations as trans, steps
 
 class HFCM:
     def __init__(self, step='overlap', transform_foo='sigmoid', error='rmse', mode='outer', optim='Nelder-Mead',
-                 max_iter=100, max_iter_optim=1e4, perform_idx=1e-05, window_size=4, amount=4, exp_name=None,
+                 max_iter=100, max_iter_optim=1e4, perform_idx=1e-05, window_size=4, diff=False, amount=4, exp_name=None,
                  save_path='output'):
         self._step = self._step_switch(step)
         self._transform_foo = self._trans_switch(transform_foo)
@@ -26,6 +26,7 @@ class HFCM:
         self._max_iter_optim = max_iter_optim
         self._perform_idx = perform_idx
         self._window_size = window_size
+        self._diff = diff
         self._amount = amount  # Amount of training datasets in the original. Maybe number of folds in this one
         self._exp_name = exp_name
         self._save_path = save_path
@@ -40,9 +41,10 @@ class HFCM:
         self._max_vals = None
         self._min_vals = None
 
-    def train_weights(self, dt_train, idx_var=None, cv_size=1, cte_cols=None, save=True):
+    def train_weights(self, dt_train, idx_var=None, cv_size=1, cte_cols=[], save=True):
         unique_cyc = dt_train[idx_var].unique()
-        dt_train = self._diff_ts(dt_train, idx_var, cte_cols)  # Differentiate the data to remove the tendency of the ts
+        if self._diff:
+            dt_train = self._diff_ts(dt_train, idx_var, cte_cols)  # Differentiate the data to remove the tendency of the ts
         tmp_idx_var = dt_train.pop(idx_var)
         self._n_fuzzy_nodes = dt_train.shape[1] # As many fuzzy nodes as variables in our data
         self._input_weights = np.random.rand(self._window_size, self._n_fuzzy_nodes)
@@ -84,7 +86,10 @@ class HFCM:
         if not isinstance(obj_vars, list):
             raise TypeError("The 'obj_vars' argument has to be a list.")
         ini_vals = dt.iloc[self._window_size-1]  # First values needed to undo the differentiation
-        series = np.array(self._max_min_norm(self._diff_ts(dt, self._idx_var, self._cte_cols)))
+        if self._diff:
+            series = np.array(self._max_min_norm(self._diff_ts(dt, self._idx_var, self._cte_cols)))
+        else:
+            series = np.array(self._max_min_norm(dt))
         test_errors = {'mae': [0] * len(obj_vars), 'mape': [0] * len(obj_vars)}  # I'll tailor the forecast to use MAE and MAPE
         idx_obj_vars = self._find_idx(obj_vars)
         pred_ts = np.zeros((length, len(obj_vars)))
@@ -101,7 +106,9 @@ class HFCM:
 
         t1 = time.time() - t0
 
-        pred_ts = self._undo_diff(self._undo_max_min_norm(pred_ts, idx_obj_vars), ini_vals, idx_obj_vars)
+        pred_ts = self._undo_max_min_norm(pred_ts, idx_obj_vars)
+        if self._diff:
+            pred_ts = self._undo_diff(pred_ts, ini_vals, idx_obj_vars)
 
         test_errors['mae'] = self._calc_real_error(orig_ts, pred_ts, idx_obj_vars, err.mae)
         test_errors['mape'] = self._calc_real_error(orig_ts, pred_ts, idx_obj_vars, err.mape)
@@ -138,6 +145,7 @@ class HFCM:
                 'max iterations': self._max_iter,
                 'max iterations optim': self._max_iter_optim,
                 'window size': self._window_size,
+                'differentiation': self._diff,
                 'performance index': self._perform_idx,
                 'amount': self._amount,
                 'save path': self._save_path
@@ -180,8 +188,9 @@ class HFCM:
                       error=summary['config']['error'], mode=summary['config']['calculations position'],
                       max_iter=summary['config']['max iterations'], perform_idx=summary['config']['performance index'],
                       max_iter_optim=summary['config']['max iterations optim'],
-                      window_size=summary['config']['window size'], amount=summary['config']['amount'],
-                      exp_name=summary['files']['experiment'], save_path=summary['config']['save path'])
+                      window_size=summary['config']['window size'], diff=summary['config']['differentiation'],
+                      amount=summary['config']['amount'], exp_name=summary['files']['experiment'],
+                      save_path=summary['config']['save path'])
         self._weights = np.array(summary['weights']['fcm'])
         self._input_weights = np.array(summary['weights']['aggregation'])
         self._var_names = summary['files']['variable names']
