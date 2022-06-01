@@ -56,7 +56,7 @@ class HFCM:
         del tmp_idx_var
 
         t0 = time.time()
-
+        # Necesita solo paquetes de 5 instancias para entrenar 4x1? Probar tambien sin diferenciar
         for _ in trange(self._max_iter, desc='model iterations', leave=True):
             self._weights, self._input_weights, self._loop_error = self._mode(
                 self._get_random_cycles(dt_train, cv_size, idx_var, unique_cyc),  # The original trains the model choosing a different train subset in each loop
@@ -252,20 +252,15 @@ class HFCM:
         return pred * (self._get_max_vals(idx_vars) - self._get_min_vals(idx_vars)) + self._get_min_vals(idx_vars)
 
     def _diff_ts(self, dt, idx_var, cte_cols):
-        if cte_cols is None and idx_var in dt.columns:
-            excluded_cols = dt[idx_var]
-        elif cte_cols is not None:
-            if idx_var in dt.columns:
-                cte_cols = cte_cols + [idx_var]
-            excluded_cols = dt[cte_cols]
+        cte_cols = cte_cols + [idx_var]
+        dt = dt.copy(deep=True)
+        obj_cols = dt.columns[[x not in cte_cols for x in dt.columns]]
 
         if idx_var in dt.columns:
             for i in dt[idx_var].unique():  # Differentiate at cycle level to not mix them
-                dt.loc[dt[idx_var] == i, :] = dt[dt[idx_var] == i].diff()
+                dt.loc[dt[idx_var] == i, obj_cols] = dt.loc[dt[idx_var] == i, obj_cols].diff()
         else:
-            dt = dt.diff()
-        if cte_cols is not None:
-            dt.loc[:, cte_cols] = excluded_cols
+            dt.loc[:, obj_cols] = dt.loc[:, obj_cols].diff()
 
         return dt.dropna(axis=0)
 

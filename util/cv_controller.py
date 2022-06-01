@@ -16,7 +16,7 @@ class CvCtrl:
 
     def run(self, model_init, pred_len, output_file=None, **kwargs):
         self._results = [[], [], [], []]
-        seed(self._seed)
+        np.random.seed(seed=self._seed)
 
         for cv in self._info['cv']:
             cv_res = self._model_eval(model_init, cv, pred_len, **kwargs)
@@ -50,14 +50,17 @@ class CvCtrl:
         model = model_init(**kwargs)
         t_train = model.train_weights(dt_train, self._idx_var, cte_cols=cte_cols, save=False)
         res = [[], [], []]
+        pad_size = model._window_size + pred_len  # Number of instances needed for prediction + test
 
         for idx in dt_test[self._idx_var].unique():
             cyc_test = dt_test[dt_test[self._idx_var] == idx]
             cyc_test = cyc_test.drop(self._idx_var, axis=1)
-            _, cyc_errors, cyc_exec_time = model.forecast(cyc_test, length=pred_len, obj_vars=[self._obj_var], plot_res=False)
-            res[0] = res[0] + cyc_errors["mae"]
-            res[1] = res[1] + cyc_errors["mape"]
-            res[2].append(cyc_exec_time)
+            for i in range(cyc_test.shape[0] // pad_size):
+                _, cyc_errors, cyc_exec_time = model.forecast(cyc_test[i*pad_size:], length=pred_len,
+                                                              obj_vars=[self._obj_var], plot_res=False)
+                res[0] = res[0] + cyc_errors["mae"]
+                res[1] = res[1] + cyc_errors["mape"]
+                res[2].append(cyc_exec_time)
 
         return res + [t_train]
 
