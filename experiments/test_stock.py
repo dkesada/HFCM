@@ -15,6 +15,7 @@ if __name__ == '__main__':
         'max_iter_optim': 1e8,
         'perform_idx': 1e-7,
         #'mode': 'inner',
+        'amount': 2,
         'max_iter': 20
     }
 

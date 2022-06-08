@@ -15,7 +15,7 @@ from util import modes, errors as err, transformations as trans, steps
 
 class HFCM:
     def __init__(self, step='overlap', transform_foo='sigmoid', error='rmse', mode='outer', optim='Nelder-Mead',
-                 max_iter=100, max_iter_optim=1e4, perform_idx=1e-05, window_size=4, diff=False, amount=4, exp_name=None,
+                 max_iter=100, max_iter_optim=1e4, perform_idx=1e-05, window_size=4, diff=False, amount=1, exp_name=None,
                  save_path='output'):
         self._step = self._step_switch(step)
         self._transform_foo = self._trans_switch(transform_foo)
@@ -41,7 +41,7 @@ class HFCM:
         self._max_vals = None
         self._min_vals = None
 
-    def train_weights(self, dt_train, idx_var=None, cv_size=1, cte_cols=[], save=True):
+    def train_weights(self, dt_train, idx_var=None, cte_cols=[], save=True):
         unique_cyc = dt_train[idx_var].unique()
         if self._diff:
             dt_train = self._diff_ts(dt_train, idx_var, cte_cols)  # Differentiate the data to remove the tendency of the ts
@@ -61,7 +61,7 @@ class HFCM:
         # Necesita solo paquetes de 5 instancias para entrenar 4x1? Probar tambien sin diferenciar
         for _ in trange(self._max_iter, desc='model iterations', leave=True):
             self._weights, self._input_weights, self._loop_error = self._mode(
-                self._get_random_cycles(dt_train, cv_size, idx_var, unique_cyc),  # The original trains the model choosing a different train subset in each loop
+                self._get_random_cycles(dt_train, self._amount, idx_var, unique_cyc),  # The original trains the model choosing a different train subset in each loop
                 self._n_fuzzy_nodes, self._window_size,
                 self._step, self._transform_foo(),
                 self._weights, self._input_weights,
