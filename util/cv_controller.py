@@ -53,6 +53,8 @@ class CvCtrl:
         t_train = model.train_weights(dt_train, self._idx_var, cte_cols=cte_cols, save=False)
         res = [[], [], []]
         pad_size = model._window_size + pred_len  # Number of instances needed for prediction + test
+        if model.is_diff():
+            pad_size += 1
 
         for idx in dt_test[self._idx_var].unique():
             cyc_test = dt_test[dt_test[self._idx_var] == idx]

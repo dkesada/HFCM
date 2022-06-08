@@ -9,10 +9,12 @@ if __name__ == '__main__':
     # Config
     config = {
         'optim': 'Nelder-Mead',
-        'transform_foo': 'gaussian',
-        'window_size': 4,
-        'max_iter_optim': 1e6,
+        'transform_foo': 'sigmoid',
+        'window_size': 1,
+        'diff': True,
+        'max_iter_optim': 1e8,
         'perform_idx': 1e-7,
+        #'mode': 'inner',
         'max_iter': 20
     }
 

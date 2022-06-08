@@ -85,7 +85,10 @@ class HFCM:
     def forecast(self, dt, length, obj_vars, print_res=True, plot_res=True):
         if not isinstance(obj_vars, list):
             raise TypeError("The 'obj_vars' argument has to be a list.")
-        ini_vals = dt.iloc[self._window_size-1]  # First values needed to undo the differentiation
+        if self._diff:
+            ini_vals = dt.iloc[self._window_size]
+        else:
+            ini_vals = dt.iloc[self._window_size-1]  # First values needed to undo the differentiation
         if self._diff:
             series = np.array(self._max_min_norm(self._diff_ts(dt, self._idx_var, self._cte_cols)))
         else:
@@ -93,7 +96,10 @@ class HFCM:
         test_errors = {'mae': [0] * len(obj_vars), 'mape': [0] * len(obj_vars)}  # I'll tailor the forecast to use MAE and MAPE
         idx_obj_vars = self._find_idx(obj_vars)
         pred_ts = np.zeros((length, len(obj_vars)))
-        orig_ts = np.array(dt.iloc[self._window_size:(self._window_size + length), idx_obj_vars])  # It isn't always available in real world applications
+        if self._diff:
+            orig_ts = np.array(dt.iloc[self._window_size+1:(self._window_size + 1 + length), idx_obj_vars])
+        else:
+            orig_ts = np.array(dt.iloc[self._window_size:(self._window_size + length), idx_obj_vars])  # It isn't always available in real world applications
 
         x_window = np.copy(series[0:self._window_size])  # I'll create and move the window myself, without the step
 
@@ -201,6 +207,8 @@ class HFCM:
         self._loop_error = summary['results']['final error']
         self._errors = summary['results']['errors']
 
+    def is_diff(self):
+        return self._diff
 
     # I'll code the original argument switches as static methods of the class
     @staticmethod
@@ -216,6 +224,8 @@ class HFCM:
         res = trans.gaussian
         if transform == 'sigmoid':
             res = trans.sigmoid
+        elif transform == 'relu':
+            res = trans.relu
         elif transform == 'binary':
             res = trans.binary
         elif transform == 'tanh':

@@ -85,7 +85,7 @@ def lmfit(fcm_weights, agg_weights, const, func, optim, max_iter_optim):
     return fcm_weights, agg_weights, err
 
 
-def lmfit_inner(transformation, fcm_weights, agg_weights, x, y, error, optim):
+def lmfit_inner(transformation, fcm_weights, agg_weights, x, y, error, optim, max_iter_optim):
     n = fcm_weights.shape[0]
     m = agg_weights.shape[0]
 
@@ -99,7 +99,7 @@ def lmfit_inner(transformation, fcm_weights, agg_weights, x, y, error, optim):
 
     const = n, m
 
-    fcm_weights, agg_weights, err = lmfit(fcm_weights, agg_weights, const, func, optim)
+    fcm_weights, agg_weights, err = lmfit(fcm_weights, agg_weights, const, func, optim, max_iter_optim)
 
     return fcm_weights, agg_weights, err
 
@@ -151,12 +151,12 @@ def calc_all(time_series, step, window, transformation, weights, input_weights):
 
 
 def inner_calculations(time_series, fuzzy_nodes, window, step, transformation, weights, input_weights,
-                       error, optim='nelder'):
+                       error, optim='nelder', max_iter_optim=1e4):
     error_max = -1
 
     for step in step(time_series, window):
         weights, input_weights, e = lmfit_inner(transformation, weights, input_weights, step['x'], step['y'],
-                                                error, optim)
+                                                error, optim, max_iter_optim)
         if error_max < e:
             error_max = e
 
