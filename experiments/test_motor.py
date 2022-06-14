@@ -9,7 +9,7 @@ if __name__ == '__main__':
     config = {
         'optim': 'Nelder-Mead',
         'transform_foo': 'sigmoid',
-        'window_size': 2,
+        'window_size': 1,
         'diff': True,
         'max_iter_optim': 1e4,
         'perform_idx': 1e-7,
